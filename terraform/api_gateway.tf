@@ -11,9 +11,20 @@ resource "aws_apigatewayv2_integration" "lambda" {
   timeout_milliseconds   = 20000
 }
 
-resource "aws_apigatewayv2_route" "chat" {
+locals {
+  api_routes = [
+    "POST /chat",
+    "GET /history",
+    "POST /payments",
+    "GET /payments",
+    "POST /payments/{paymentId}/pay",
+  ]
+}
+
+resource "aws_apigatewayv2_route" "routes" {
+  for_each  = toset(local.api_routes)
   api_id    = aws_apigatewayv2_api.http.id
-  route_key = "POST /chat"
+  route_key = each.value
   target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
 

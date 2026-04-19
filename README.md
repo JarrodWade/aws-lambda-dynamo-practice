@@ -28,11 +28,53 @@ DynamoDB (single table: PK / SK, TTL on `expiresAt`)
 
 ### DynamoDB item shapes
 
-| itemType            | PK              | SK                         | Notes                             |
-| ------------------- | --------------- | -------------------------- | --------------------------------- |
-| `ConversationSession` | `USER#<id>`   | `SESSION#<id>`             | TTL via `expiresAt`               |
-| `ChatMessage`       | `USER#<id>`    | `MSG#<isoTs>#<msgId>`       | One per user/bot message          |
-| `Idempotency`       | `IDEMPOTENCY#<reqId>` | `REQUEST`            | Prevents duplicate processing      |
+| itemType              | PK                    | SK                       | Notes                                |
+| --------------------- | --------------------- | ------------------------ | ------------------------------------ |
+| `ConversationSession` | `USER#<id>`           | `SESSION#<id>`           | TTL via `expiresAt`                  |
+| `ChatMessage`         | `USER#<id>`           | `MSG#<isoTs>#<msgId>`    | One per user/bot message; TTL        |
+| `PaymentIntent`       | `USER#<id>`           | `PAYMENT#<paymentId>`    | State machine; appears on GSI1       |
+| `Idempotency`         | `IDEMPOTENCY#<reqId>` | `REQUEST`                | Prevents duplicate processing; TTL   |
+
+### GSI1 — payment queue by status
+
+```
+GSI1PK = PAYMENT_STATUS#<status>     // e.g. PAYMENT_STATUS#PENDING
+GSI1SK = <createdAt>#<paymentId>     // time-ordered within a status
+```
+
+Lets you query things like "all PENDING payments across all users" without scanning.
+
+## API routes
+
+All routes go to a single Lambda router (`lambda/handler.py`).
+
+| Method | Path                          | Body / Query                                              | Description                                 |
+| ------ | ----------------------------- | --------------------------------------------------------- | ------------------------------------------- |
+| POST   | `/chat`                       | `{userId, sessionId?, message}`                           | Chat turn through Bedrock (Nova Micro)      |
+| GET    | `/history`                    | `?userId=&limit=20&cursor=<prevSK>`                       | Paginated message history (newest first)    |
+| POST   | `/payments`                   | `{userId, amount, currency?, paymentId?}`                 | Create PENDING `PaymentIntent`              |
+| GET    | `/payments`                   | `?userId=` **or** `?status=PENDING\|PAID\|...`            | List by user (base table) or status (GSI1)  |
+| POST   | `/payments/{paymentId}/pay`   | `{userId, confirmationId}`                                | Conditional `PENDING -> PAID` transition    |
+
+### Try it
+
+```bash
+BASE=$(terraform -chdir=terraform output -raw api_endpoint)
+
+# create
+curl -sS -X POST "$BASE/payments" -H 'content-type: application/json' \
+  -d '{"userId":"demo-user","amount":142.67}' | jq
+
+# list pending across all users (GSI1)
+curl -sS "$BASE/payments?status=PENDING" | jq
+
+# pay it (replace pay-XXXX)
+curl -sS -X POST "$BASE/payments/pay-XXXX/pay" -H 'content-type: application/json' \
+  -d '{"userId":"demo-user","confirmationId":"conf-001"}' | jq
+
+# message history
+curl -sS "$BASE/history?userId=demo-user&limit=10" | jq
+```
 
 ## One-time setup
 
