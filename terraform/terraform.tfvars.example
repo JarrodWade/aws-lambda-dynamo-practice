@@ -1,0 +1,8 @@
+project_name        = "billing-bot-practice"
+region              = "us-east-1"
+bedrock_model_id    = "amazon.nova-micro-v1:0"
+max_output_tokens   = 300
+session_ttl_seconds = 604800
+log_retention_days  = 7
+monthly_budget_usd  = 10
+budget_alert_email  = "you@example.com"

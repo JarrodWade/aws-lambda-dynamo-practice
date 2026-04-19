@@ -1,0 +1,2 @@
+# boto3 is preinstalled in the AWS Lambda Python runtime, so we don't bundle it.
+# Add additional runtime deps here if needed.
