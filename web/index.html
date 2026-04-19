@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Billing Bot Practice</title>
+    <style>
+      :root {
+        --bg: #0b1020;
+        --panel: #141a2e;
+        --panel-2: #1b2340;
+        --border: #2a3358;
+        --text: #e6eaf5;
+        --muted: #97a0c0;
+        --accent: #5b8cff;
+        --accent-2: #6ee7b7;
+        --warn: #ffb86b;
+        --danger: #ff6b6b;
+        --user-bubble: #2a3358;
+        --bot-bubble: #1f2a4a;
+      }
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0; padding: 0; height: 100%;
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text",
+          "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        background: var(--bg); color: var(--text);
+      }
+      header {
+        padding: 14px 20px; border-bottom: 1px solid var(--border);
+        background: var(--panel); display: flex; gap: 12px; align-items: center;
+        flex-wrap: wrap;
+      }
+      header h1 { margin: 0; font-size: 16px; font-weight: 600; }
+      header .grow { flex: 1; }
+      header label { font-size: 12px; color: var(--muted); margin-right: 6px; }
+      header input {
+        background: var(--panel-2); color: var(--text);
+        border: 1px solid var(--border); padding: 6px 10px; border-radius: 6px;
+        font-size: 13px; min-width: 220px;
+      }
+      header input.user { min-width: 140px; }
+      header button {
+        background: var(--accent); color: white; border: none;
+        padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px;
+      }
+      header button.ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
+      main {
+        display: grid;
+        grid-template-columns: 1.3fr 1fr;
+        gap: 14px; padding: 14px;
+        height: calc(100vh - 64px);
+      }
+      .panel {
+        background: var(--panel); border: 1px solid var(--border);
+        border-radius: 10px; display: flex; flex-direction: column; min-height: 0;
+      }
+      .panel h2 {
+        margin: 0; padding: 12px 14px; font-size: 13px; font-weight: 600;
+        color: var(--muted); border-bottom: 1px solid var(--border);
+        text-transform: uppercase; letter-spacing: 0.5px;
+      }
+      .messages {
+        flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px;
+      }
+      .bubble {
+        max-width: 80%; padding: 10px 12px; border-radius: 12px;
+        font-size: 14px; line-height: 1.4; white-space: pre-wrap; word-wrap: break-word;
+      }
+      .bubble.user { background: var(--user-bubble); align-self: flex-end; border-bottom-right-radius: 4px; }
+      .bubble.bot  { background: var(--bot-bubble);  align-self: flex-start; border-bottom-left-radius: 4px; }
+      .bubble small { display: block; color: var(--muted); font-size: 11px; margin-top: 4px; }
+      .composer {
+        display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--border);
+      }
+      .composer input {
+        flex: 1; background: var(--panel-2); color: var(--text);
+        border: 1px solid var(--border); border-radius: 8px;
+        padding: 10px 12px; font-size: 14px;
+      }
+      .composer button {
+        background: var(--accent); color: white; border: none;
+        border-radius: 8px; padding: 0 16px; cursor: pointer; font-size: 14px;
+      }
+      .composer button:disabled { opacity: 0.5; cursor: not-allowed; }
+      .pay-form {
+        padding: 12px; display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px;
+        border-bottom: 1px solid var(--border);
+      }
+      .pay-form input, .pay-form button {
+        background: var(--panel-2); color: var(--text);
+        border: 1px solid var(--border); padding: 8px 10px; border-radius: 6px;
+        font-size: 13px;
+      }
+      .pay-form button {
+        background: var(--accent-2); color: #0b1020; border: none;
+        font-weight: 600; cursor: pointer;
+      }
+      .pay-tabs { padding: 8px 12px 0; display: flex; gap: 4px; }
+      .pay-tabs button {
+        background: transparent; color: var(--muted); border: 1px solid var(--border);
+        padding: 4px 10px; border-radius: 999px; font-size: 12px; cursor: pointer;
+      }
+      .pay-tabs button.active { color: var(--text); border-color: var(--accent); background: rgba(91,140,255,0.1); }
+      .pay-list { flex: 1; overflow-y: auto; padding: 10px 12px; }
+      .pay-item {
+        background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px;
+        padding: 10px 12px; margin-bottom: 8px; font-size: 13px;
+      }
+      .pay-item .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+      .pay-item .meta { color: var(--muted); font-size: 11px; margin-top: 4px; }
+      .badge {
+        font-size: 11px; padding: 2px 8px; border-radius: 999px;
+        text-transform: uppercase; letter-spacing: 0.5px;
+      }
+      .badge.PENDING { background: rgba(255,184,107,0.15); color: var(--warn); }
+      .badge.PAID    { background: rgba(110,231,183,0.15); color: var(--accent-2); }
+      .badge.FAILED, .badge.CANCELLED { background: rgba(255,107,107,0.15); color: var(--danger); }
+      .pay-item button.pay {
+        background: var(--accent-2); color: #0b1020; border: none;
+        padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;
+      }
+      .empty { color: var(--muted); font-size: 13px; padding: 12px; text-align: center; }
+      .toast {
+        position: fixed; bottom: 20px; right: 20px;
+        background: var(--panel-2); border: 1px solid var(--border);
+        padding: 10px 14px; border-radius: 8px; font-size: 13px;
+        opacity: 0; transition: opacity 0.2s;
+      }
+      .toast.show { opacity: 1; }
+      .toast.error { border-color: var(--danger); color: var(--danger); }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Billing Bot</h1>
+      <div>
+        <label>API</label>
+        <input id="api-base" placeholder="https://xxx.execute-api.us-east-1.amazonaws.com" />
+      </div>
+      <div>
+        <label>User</label>
+        <input id="user-id" class="user" value="demo-user" />
+      </div>
+      <div class="grow"></div>
+      <button id="refresh">Refresh</button>
+      <button id="reset" class="ghost" title="Clear local UI state">Clear chat</button>
+    </header>
+
+    <main>
+      <section class="panel">
+        <h2>Chat</h2>
+        <div id="messages" class="messages"></div>
+        <form id="composer" class="composer">
+          <input id="msg" placeholder="Ask the billing bot…" autocomplete="off" />
+          <button id="send" type="submit">Send</button>
+        </form>
+      </section>
+
+      <section class="panel">
+        <h2>Payments</h2>
+        <form id="pay-form" class="pay-form">
+          <input id="pay-amount" type="number" step="0.01" min="0.01" placeholder="Amount" required />
+          <input id="pay-currency" value="USD" />
+          <button type="submit">Create</button>
+        </form>
+        <div class="pay-tabs">
+          <button data-tab="user" class="active">My payments</button>
+          <button data-tab="PENDING">All PENDING</button>
+          <button data-tab="PAID">All PAID</button>
+        </div>
+        <div id="pay-list" class="pay-list"></div>
+      </section>
+    </main>
+
+    <div id="toast" class="toast"></div>
+
+    <script>
+      // ---------- state ----------
+      const apiInput = document.getElementById("api-base");
+      const userInput = document.getElementById("user-id");
+      const messagesEl = document.getElementById("messages");
+      const composer = document.getElementById("composer");
+      const msgInput = document.getElementById("msg");
+      const sendBtn = document.getElementById("send");
+      const payForm = document.getElementById("pay-form");
+      const payAmount = document.getElementById("pay-amount");
+      const payCurrency = document.getElementById("pay-currency");
+      const payList = document.getElementById("pay-list");
+      const refreshBtn = document.getElementById("refresh");
+      const resetBtn = document.getElementById("reset");
+      const toastEl = document.getElementById("toast");
+      const tabsEl = document.querySelector(".pay-tabs");
+
+      apiInput.value = localStorage.getItem("apiBase") || apiInput.value || "";
+      userInput.value = localStorage.getItem("userId") || userInput.value || "demo-user";
+      let activeTab = "user";
+
+      apiInput.addEventListener("change", () => localStorage.setItem("apiBase", apiInput.value.trim()));
+      userInput.addEventListener("change", () => {
+        localStorage.setItem("userId", userInput.value.trim());
+        loadAll();
+      });
+
+      // ---------- helpers ----------
+      function toast(msg, isError = false) {
+        toastEl.textContent = msg;
+        toastEl.classList.toggle("error", isError);
+        toastEl.classList.add("show");
+        setTimeout(() => toastEl.classList.remove("show"), 2500);
+      }
+
+      function apiBase() {
+        const v = apiInput.value.trim().replace(/\/$/, "");
+        if (!v) { toast("Set the API URL first", true); throw new Error("no api base"); }
+        return v;
+      }
+      function userId() {
+        const v = userInput.value.trim();
+        if (!v) { toast("Set a user id first", true); throw new Error("no user id"); }
+        return v;
+      }
+
+      async function api(path, opts = {}) {
+        const url = apiBase() + path;
+        const res = await fetch(url, {
+          ...opts,
+          headers: { "content-type": "application/json", ...(opts.headers || {}) },
+        });
+        const text = await res.text();
+        let data;
+        try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
+        if (!res.ok) {
+          const err = data?.error || res.statusText;
+          throw new Error(err);
+        }
+        return data;
+      }
+
+      function fmtTime(iso) {
+        if (!iso) return "";
+        try { return new Date(iso).toLocaleTimeString(); } catch { return iso; }
+      }
+
+      // ---------- chat ----------
+      function addBubble(role, text, ts) {
+        const div = document.createElement("div");
+        div.className = "bubble " + (role === "USER" ? "user" : "bot");
+        div.textContent = text;
+        if (ts) {
+          const t = document.createElement("small");
+          t.textContent = fmtTime(ts);
+          div.appendChild(t);
+        }
+        messagesEl.appendChild(div);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+      }
+
+      async function loadHistory() {
+        messagesEl.innerHTML = "";
+        try {
+          const data = await api(`/history?userId=${encodeURIComponent(userId())}&limit=50`);
+          // history returns newest-first; render oldest-first
+          [...(data.items || [])].reverse().forEach((m) => addBubble(m.role, m.text, m.createdAt));
+        } catch (e) {
+          toast("Could not load history: " + e.message, true);
+        }
+      }
+
+      composer.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const text = msgInput.value.trim();
+        if (!text) return;
+        addBubble("USER", text, new Date().toISOString());
+        msgInput.value = "";
+        sendBtn.disabled = true;
+        try {
+          const data = await api("/chat", {
+            method: "POST",
+            body: JSON.stringify({ userId: userId(), message: text }),
+          });
+          addBubble("BOT", data.reply || "(no reply)", new Date().toISOString());
+        } catch (err) {
+          addBubble("BOT", "[error] " + err.message, new Date().toISOString());
+        } finally {
+          sendBtn.disabled = false;
+          msgInput.focus();
+        }
+      });
+
+      // ---------- payments ----------
+      payForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const amount = parseFloat(payAmount.value);
+        const currency = payCurrency.value.trim().toUpperCase() || "USD";
+        if (!amount || amount <= 0) return toast("Enter a valid amount", true);
+        try {
+          await api("/payments", {
+            method: "POST",
+            body: JSON.stringify({ userId: userId(), amount, currency }),
+          });
+          payAmount.value = "";
+          toast("PaymentIntent created");
+          loadPayments();
+        } catch (err) {
+          toast(err.message, true);
+        }
+      });
+
+      tabsEl.addEventListener("click", (e) => {
+        const btn = e.target.closest("button[data-tab]");
+        if (!btn) return;
+        activeTab = btn.dataset.tab;
+        tabsEl.querySelectorAll("button").forEach((b) => b.classList.toggle("active", b === btn));
+        loadPayments();
+      });
+
+      async function loadPayments() {
+        payList.innerHTML = '<div class="empty">Loading…</div>';
+        try {
+          let path;
+          if (activeTab === "user") {
+            path = `/payments?userId=${encodeURIComponent(userId())}`;
+          } else {
+            path = `/payments?status=${activeTab}`;
+          }
+          const data = await api(path);
+          renderPayments(data.items || []);
+        } catch (err) {
+          payList.innerHTML = `<div class="empty">Error: ${err.message}</div>`;
+        }
+      }
+
+      function renderPayments(items) {
+        if (!items.length) {
+          payList.innerHTML = '<div class="empty">No payments.</div>';
+          return;
+        }
+        payList.innerHTML = "";
+        items.forEach((p) => {
+          const el = document.createElement("div");
+          el.className = "pay-item";
+          const amount = `${Number(p.amount).toFixed(2)} ${p.currency || "USD"}`;
+          const canPay = p.status === "PENDING";
+          el.innerHTML = `
+            <div class="row">
+              <div><strong>${amount}</strong> <span class="badge ${p.status}">${p.status}</span></div>
+              ${canPay ? `<button class="pay" data-id="${p.paymentId}" data-user="${p.userId}">Mark paid</button>` : ""}
+            </div>
+            <div class="meta">${p.userId} &middot; ${p.paymentId} &middot; ${fmtTime(p.createdAt)}</div>
+          `;
+          payList.appendChild(el);
+        });
+        payList.querySelectorAll("button.pay").forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            const paymentId = btn.dataset.id;
+            const ownerUserId = btn.dataset.user;
+            btn.disabled = true;
+            try {
+              await api(`/payments/${encodeURIComponent(paymentId)}/pay`, {
+                method: "POST",
+                body: JSON.stringify({
+                  userId: ownerUserId,
+                  confirmationId: "ui-" + Date.now(),
+                }),
+              });
+              toast("Payment marked PAID");
+              loadPayments();
+            } catch (err) {
+              toast(err.message, true);
+              btn.disabled = false;
+            }
+          });
+        });
+      }
+
+      // ---------- wiring ----------
+      refreshBtn.addEventListener("click", loadAll);
+      resetBtn.addEventListener("click", () => { messagesEl.innerHTML = ""; });
+
+      function loadAll() {
+        if (!apiInput.value.trim()) return;
+        loadHistory();
+        loadPayments();
+      }
+
+      loadAll();
+    </script>
+  </body>
+</html>

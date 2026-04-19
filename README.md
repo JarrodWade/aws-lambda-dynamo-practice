@@ -139,6 +139,22 @@ Tail logs in another terminal:
 make logs
 ```
 
+## Web UI (no build, just open it)
+
+A tiny single-file UI lives at `web/index.html` &mdash; chat panel + payments panel.
+
+```bash
+open web/index.html              # macOS, opens in default browser
+```
+
+Then in the top bar:
+
+1. Paste your **API URL** (run `terraform -chdir=terraform output -raw api_endpoint`).
+2. Set a **User** id (e.g. `demo-user`).
+3. Both values are saved to `localStorage` so you only do it once per browser.
+
+The UI uses CORS (`*`) on the HTTP API. Fine for solo practice; lock it down to a real origin before sharing.
+
 ## Inspect data in DynamoDB
 
 ```bash

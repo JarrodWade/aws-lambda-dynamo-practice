@@ -1,6 +1,15 @@
 resource "aws_apigatewayv2_api" "http" {
   name          = "${var.project_name}-api"
   protocol_type = "HTTP"
+
+  # Open CORS for local-file/browser practice. Tighten to your real origin
+  # (e.g. https://yourapp.example.com) when you put this anywhere real.
+  cors_configuration {
+    allow_origins = ["*"]
+    allow_methods = ["GET", "POST", "OPTIONS"]
+    allow_headers = ["content-type"]
+    max_age       = 300
+  }
 }
 
 resource "aws_apigatewayv2_integration" "lambda" {
