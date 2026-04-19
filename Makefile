@@ -34,3 +34,9 @@ test-api:
 logs:
 	@LG=$$($(TF) output -raw log_group); \
 	aws logs tail "$$LG" --since 10m --follow
+
+# Serve the static UI on http://localhost:8000 (browsers block CORS from file://)
+UI_PORT ?= 8000
+ui:
+	@echo "Open http://localhost:$(UI_PORT)/"; \
+	cd web && python3 -m http.server $(UI_PORT)

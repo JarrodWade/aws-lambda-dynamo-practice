@@ -144,8 +144,13 @@ make logs
 A tiny single-file UI lives at `web/index.html` &mdash; chat panel + payments panel.
 
 ```bash
-open web/index.html              # macOS, opens in default browser
+make ui                          # serves it on http://localhost:8000
 ```
+
+> Don't open the file directly with `file://` &mdash; browsers send `Origin: null`
+> on those requests and API Gateway won't return CORS headers, so calls fail
+> with "Failed to fetch". `make ui` just runs `python3 -m http.server` so the
+> page loads from a real `http://localhost` origin.
 
 Then in the top bar:
 
