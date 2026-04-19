@@ -196,11 +196,11 @@
       userInput.value = localStorage.getItem("userId") || userInput.value || "demo-user";
       let activeTab = "user";
 
-      apiInput.addEventListener("change", () => localStorage.setItem("apiBase", apiInput.value.trim()));
-      userInput.addEventListener("change", () => {
-        localStorage.setItem("userId", userInput.value.trim());
-        loadAll();
-      });
+      // Save on every keystroke so you can't lose the API URL by forgetting to blur.
+      apiInput.addEventListener("input", () => localStorage.setItem("apiBase", apiInput.value.trim()));
+      apiInput.addEventListener("change", () => loadAll());
+      userInput.addEventListener("input", () => localStorage.setItem("userId", userInput.value.trim()));
+      userInput.addEventListener("change", () => loadAll());
 
       // ---------- helpers ----------
       function toast(msg, isError = false) {
@@ -378,8 +378,18 @@
       refreshBtn.addEventListener("click", loadAll);
       resetBtn.addEventListener("click", () => { messagesEl.innerHTML = ""; });
 
+      function showEmptyState() {
+        messagesEl.innerHTML =
+          '<div class="empty">Paste your API URL in the top bar to get started.<br>' +
+          'Run <code>terraform -chdir=terraform output -raw api_endpoint</code> to find it.</div>';
+        payList.innerHTML = '<div class="empty">Set the API URL above to load payments.</div>';
+      }
+
       function loadAll() {
-        if (!apiInput.value.trim()) return;
+        if (!apiInput.value.trim()) {
+          showEmptyState();
+          return;
+        }
         loadHistory();
         loadPayments();
       }
